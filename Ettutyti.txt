@@ -1,56 +1,149 @@
--- GUI Glow Effect (By ChatGPT)
-local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
-local UIStroke = Instance.new("UIStroke")
-local TextLabel = Instance.new("TextLabel")
-local TweenService = game:GetService("TweenService")
+-- LocalScript (StarterGui)
 
--- Parent GUI
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
--- Frame
-Frame.Parent = ScreenGui
-Frame.AnchorPoint = Vector2.new(0.5,0.5)
-Frame.Position = UDim2.new(0.5,0,0.5,0)
-Frame.Size = UDim2.new(0,400,0,200)
-Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-Frame.BackgroundTransparency = 0.2
+-- GUI หลัก
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
-UICorner.CornerRadius = UDim.new(0,15)
-UICorner.Parent = Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 280)
+frame.Position = UDim2.new(0.5, -140, 0.5, -140)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
 
--- ขอบเรืองแสง
-UIStroke.Parent = Frame
-UIStroke.Thickness = 4
-UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-UIStroke.Color = Color3.fromRGB(0, 255, 200)
+-- ปุ่ม Dropdown
+local dropdownBtn = Instance.new("TextButton")
+dropdownBtn.Size = UDim2.new(0.9, 0, 0.12, 0)
+dropdownBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
+dropdownBtn.Text = "เลือกผู้เล่น"
+dropdownBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+dropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+dropdownBtn.Parent = frame
 
--- Animation Glow Effect
-task.spawn(function()
-	while true do
-		local tween = TweenService:Create(UIStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-			Color = Color3.fromRGB(0, 255, 150)
-		})
-		tween:Play()
-		tween.Completed:Wait()
-	end
+-- ScrollingFrame สำหรับรายชื่อผู้เล่น
+local playerListFrame = Instance.new("ScrollingFrame")
+playerListFrame.Size = UDim2.new(0.9, 0, 0.55, 0)
+playerListFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+playerListFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+playerListFrame.Visible = false
+playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerListFrame.ScrollBarThickness = 6
+playerListFrame.Parent = frame
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = playerListFrame
+uiList.SortOrder = Enum.SortOrder.Name
+
+-- ปุ่มติดตัว
+local followBtn = Instance.new("TextButton")
+followBtn.Size = UDim2.new(0.9, 0, 0.12, 0)
+followBtn.Position = UDim2.new(0.05, 0, 0.78, 0)
+followBtn.Text = "ติดตัว"
+followBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+followBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+followBtn.Parent = frame
+
+-- ปุ่มยกเลิก
+local cancelBtn = Instance.new("TextButton")
+cancelBtn.Size = UDim2.new(0.9, 0, 0.12, 0)
+cancelBtn.Position = UDim2.new(0.05, 0, 0.92, 0)
+cancelBtn.Text = "ยกเลิกติดตัว"
+cancelBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+cancelBtn.Parent = frame
+
+-- ตัวแปรติดตัว
+local following = false
+local followTarget = nil
+local heartbeatConn
+local selectedPlayer = nil
+
+-- ฟังก์ชันติดตัว
+local function startFollow(player)
+    followTarget = player
+    following = true
+    if heartbeatConn then heartbeatConn:Disconnect() end
+
+    heartbeatConn = RunService.Heartbeat:Connect(function()
+        if following and followTarget and followTarget.Character and followTarget.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = followTarget.Character.HumanoidRootPart
+            local myChar = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+            local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+            if myHRP then
+                -- ติดตัวห่าง 2 เมตร
+                myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 2)
+            end
+        end
+    end)
+end
+
+-- ฟังก์ชันยกเลิก
+local function stopFollow()
+    following = false
+    followTarget = nil
+    if heartbeatConn then heartbeatConn:Disconnect() end
+end
+
+-- อัปเดตรายชื่อผู้เล่น
+local function updatePlayerList()
+    -- ลบปุ่มเก่า
+    for _, child in pairs(playerListFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    -- สร้างปุ่มใหม่ตามรายชื่อผู้เล่น
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 35)
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.TextWrapped = true
+            btn.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+            btn.Parent = playerListFrame
+
+            btn.MouseButton1Click:Connect(function()
+                selectedPlayer = player
+                dropdownBtn.Text = "เลือก: " .. player.DisplayName
+                playerListFrame.Visible = false
+            end)
+        end
+    end
+
+    -- ปรับขนาด Canvas ของ ScrollingFrame ตามจำนวนปุ่ม
+    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, #Players:GetPlayers() * 35)
+end
+
+-- กดปุ่ม Dropdown เปิด/ปิด
+dropdownBtn.MouseButton1Click:Connect(function()
+    playerListFrame.Visible = not playerListFrame.Visible
+    if playerListFrame.Visible then
+        updatePlayerList()
+    end
 end)
 
--- TextLabel
-TextLabel.Parent = Frame
-TextLabel.AnchorPoint = Vector2.new(0.5,0.5)
-TextLabel.Position = UDim2.new(0.5,0,0.5,0)
-TextLabel.Size = UDim2.new(0.9,0,0.4,0)
-TextLabel.BackgroundTransparency = 1
-TextLabel.Text = "ขณะนี้ระบบกำลังอัพเดท"
-TextLabel.Font = Enum.Font.GothamBold
-TextLabel.TextSize = 26
-TextLabel.TextColor3 = Color3.fromRGB(255,255,255)
+-- ปุ่มติดตัว
+followBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer then
+        startFollow(selectedPlayer)
+    end
+end)
 
--- ทำให้ข้อความมีแสง
-local glow = Instance.new("UIStroke")
-glow.Parent = TextLabel
-glow.Thickness = 2
-glow.Color = Color3.fromRGB(0,255,200)
+-- ปุ่มยกเลิก
+cancelBtn.MouseButton1Click:Connect(function()
+    stopFollow()
+end)
+
+-- อัปเดตรายชื่อเมื่อมีผู้เล่นเข้า/ออก
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+
+-- โหลดตอนแรก
+updatePlayerList()
