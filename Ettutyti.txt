@@ -1,0 +1,47 @@
+-- Place this LocalScript in StarterPlayerScripts
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local uis = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local noclipEnabled = false
+
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false -- GUI จะไม่หายเมื่อเราตาย
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 50)
+frame.Position = UDim2.new(0.5, -100, 0.9, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true -- ทำให้เลื่อน GUI ได้
+frame.Parent = screenGui
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -10, 1, -10)
+button.Position = UDim2.new(0, 5, 0, 5)
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.SourceSansBold
+button.Text = "ควย: ปิด"
+button.Parent = frame
+
+-- ฟังก์ชันเปิด/ปิด Noclip
+button.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    button.Text = "ควย: " .. (noclipEnabled and "ปิดควย" or "เปิดควย")
+end)
+
+-- Noclip loop
+runService.Stepped:Connect(function()
+    if noclipEnabled then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
